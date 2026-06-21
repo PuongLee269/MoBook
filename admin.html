@@ -95,23 +95,21 @@ cursor:pointer;
 <script>
 
 const API_URL =
-"https://script.google.com/macros/s/AKfycbwZ59jq1-NGY_kUKGLBKbs_niWz7JwTEyAxYRX06n-5KVOBr7sapZfA0SIbSiZcheWayQ/exec";
-
-loadData();
+"https://script.google.com/macros/s/AKfycbwyXy8Lk2XGSj_1kADn5J80CIGtFwwiOQ6uhWhqttFE/exec";
 
 async function loadData(){
 
 try{
 
-const res =
+const response =
 await fetch(API_URL);
 
 const data =
-await res.json();
+await response.json();
 
-document
-.getElementById("totalUsers")
-.innerHTML =
+document.getElementById(
+"totalUsers"
+).innerHTML =
 "<strong>" +
 data.length +
 "</strong> người";
@@ -120,7 +118,7 @@ let usersHTML = "";
 
 let slotCounter = {};
 
-data.forEach(item=>{
+data.forEach(function(item){
 
 usersHTML +=
 '<div class="user">✅ '
@@ -134,7 +132,7 @@ JSON.parse(
 item.Availability
 );
 
-slots.forEach(slot=>{
+slots.forEach(function(slot){
 
 const key =
 slot.day +
@@ -143,74 +141,69 @@ slot.period;
 
 slotCounter[key] =
 (slotCounter[key] || 0)
-\+ 1;
++ 1;
 
 });
 
-}catch(e){}
+}catch(err){}
 
 });
 
-document
-.getElementById("userList")
-.innerHTML =
+document.getElementById(
+"userList"
+).innerHTML =
 usersHTML;
 
 const sorted =
 Object.entries(slotCounter)
-.sort(
-(a,b)=>
-b[1]-a[1]
-);
+.sort(function(a,b){
 
-let topHTML = "";
+return b[1]-a[1];
 
-sorted
-.slice(0,10)
-.forEach((item,index)=>{
+});
 
-let icon = "🏅";
+let topHTML="";
+
+sorted.slice(0,10)
+.forEach(function(item,index){
+
+let icon="🏅";
 
 if(index===0) icon="🥇";
 if(index===1) icon="🥈";
 if(index===2) icon="🥉";
 
 topHTML +=
-
 '<div class="rank">'
 + icon
 + ' '
 + item[0]
-+ ' — '
++ ' - '
 + item[1]
 + ' phiếu'
 + '</div>';
 
 });
 
-if(topHTML===""){
-
-topHTML =
-"Chưa có dữ liệu";
-
-}
-
-document
-.getElementById("topSlots")
-.innerHTML =
+document.getElementById(
+"topSlots"
+).innerHTML =
 topHTML;
 
-}catch(error){
+}
+catch(error){
+
+console.error(error);
 
 alert(
 "Lỗi tải dữ liệu"
 );
 
-console.error(error);
-
 }
 
 }
+
+loadData();
 
 </script>
 
