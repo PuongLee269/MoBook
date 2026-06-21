@@ -71,7 +71,7 @@ th,td{border:1px solid #ddd;padding:10px;text-align:center}
 <h2>🏆 Top 5 buổi được bình chọn nhiều nhất</h2>
 <div id="topFive"></div>
 <div class="actions">
-<button id="refillBtn" class="secondary" type="button">Điền lại</button>
+<button id="refillBtn" class="secondary" type="button">Đặt lại</button>
 </div>
 </div>
 </div>
@@ -82,6 +82,7 @@ const days = ["T2","T3","T4","T5","T6","T7","CN"];
 const ratings = {morning:1,afternoon:1,evening:1};
 let backendReady = false;
 let classConfigs = [];
+let lastSubmission = null;
 
 function showNotice(message){
   const box=document.getElementById("backendNotice");
@@ -256,6 +257,13 @@ async function submitVote(){
       const records=await requestJson(API_URL+"?t="+Date.now());
       topSlots=countTopSlots(Array.isArray(records)?records:records.responses,classCode);
     }
+    lastSubmission={
+      responseId:result&&result.responseId?result.responseId:"",
+      resetToken:result&&result.resetToken?result.resetToken:"",
+      name:name,
+      classCode:classCode,
+      periodKey:result&&result.periodKey?result.periodKey:""
+    };
     renderTopFive(topSlots);
     document.getElementById("successMessage").textContent=result&&result.periodLabel
       ? "Khảo sát đã được ghi nhận cho "+result.periodLabel+"."
@@ -273,9 +281,34 @@ async function submitVote(){
   }
 }
 
-function resetForm(){
-  const cleanUrl=window.location.origin+window.location.pathname+"?refill="+Date.now();
-  window.location.replace(cleanUrl);
+async function resetForm(){
+  if(!lastSubmission){
+    alert("Không tìm thấy lượt vừa gửi để đặt lại.");
+    return;
+  }
+  const button=document.getElementById("refillBtn");
+  button.disabled=true;
+  button.textContent="Đang xóa...";
+  try{
+    const result=await requestJson(API_URL,{
+      method:"POST",
+      body:JSON.stringify({
+        action:"resetResponse",
+        responseId:lastSubmission.responseId,
+        resetToken:lastSubmission.resetToken,
+        name:lastSubmission.name,
+        classCode:lastSubmission.classCode,
+        periodKey:lastSubmission.periodKey
+      })
+    });
+    if(!result.success)throw new Error(result.message||"Không thể xóa lượt vừa gửi");
+    const cleanUrl=window.location.origin+window.location.pathname+"?reset="+Date.now();
+    window.location.replace(cleanUrl);
+  }catch(error){
+    alert(error.message||"Đặt lại thất bại");
+    button.disabled=false;
+    button.textContent="Đặt lại";
+  }
 }
 
 document.getElementById("continueBtn").addEventListener("click",generateSchedule);
