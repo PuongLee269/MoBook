@@ -48,6 +48,11 @@ label{display:block;font-weight:700;margin-bottom:7px}
 <div><label for="newFrequency">Chu kỳ điền lịch</label><select id="newFrequency"><option value="weekly">Hàng tuần</option><option value="monthly">Hàng tháng</option></select></div>
 <button id="addClassBtn" type="button">Thêm mã lớp</button>
 </div>
+<div style="margin-top:16px">
+<label for="adminKey">ADMIN_KEY (tùy chọn)</label>
+<input id="adminKey" type="password" autocomplete="current-password" placeholder="Để trống nếu chưa tạo ADMIN_KEY">
+<div class="small">Bạn tự tạo khóa này tại Apps Script → Project Settings → Script Properties. Tên thuộc tính là ADMIN_KEY.</div>
+</div>
 <table class="config-table">
 <thead><tr><th>Mã lớp</th><th>Chu kỳ</th><th>Trạng thái</th><th></th></tr></thead>
 <tbody id="configBody"><tr><td colspan="4">Đang tải...</td></tr></tbody>
@@ -55,7 +60,7 @@ label{display:block;font-weight:700;margin-bottom:7px}
 <div class="actions">
 <button id="saveConfigBtn" type="button">💾 Lưu cài đặt</button>
 </div>
-<p class="small">Nếu đã đặt Script Property <strong>ADMIN_KEY</strong>, hệ thống sẽ hỏi khóa quản trị khi lưu.</p>
+<p class="small">Nếu chưa tạo Script Property <strong>ADMIN_KEY</strong>, cứ để trống ô khóa quản trị.</p>
 </div>
 
 <div class="card"><h2>👥 Tổng số lượt tham gia</h2><div id="totalUsers">Đang tải...</div></div>
@@ -152,10 +157,7 @@ async function saveConfig(){
     alert("Cần cập nhật Apps Script trước khi lưu.");
     return;
   }
-  let adminKey="";
-  if(window.confirm("Bạn có dùng ADMIN_KEY trong Script Properties không?")){
-    adminKey=window.prompt("Nhập ADMIN_KEY:")||"";
-  }
+  const adminKey=document.getElementById("adminKey").value.trim();
   const button=document.getElementById("saveConfigBtn");
   button.disabled=true;
   try{
