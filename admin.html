@@ -1,284 +1,245 @@
 <!DOCTYPE html>
-
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
 <title>Dashboard khảo sát</title>
-
 <style>
-
-body{
-font-family:Arial,sans-serif;
-background:#f5f7fb;
-max-width:1000px;
-margin:auto;
-padding:20px;
-}
-
-.card{
-background:#fff;
-padding:20px;
-margin-bottom:20px;
-border-radius:12px;
-box-shadow:0 2px 8px rgba(0,0,0,.08);
-}
-
-h1,h2{
-margin-top:0;
-}
-
-button{
-background:#2563eb;
-color:white;
-border:none;
-padding:12px 18px;
-border-radius:8px;
-cursor:pointer;
-}
-
-.rank{
-padding:10px;
-margin-bottom:8px;
-background:#f3f4f6;
-border-radius:8px;
-}
-
-.user{
-padding:8px 0;
-border-bottom:1px solid #eee;
-}
-
-.error{
-background:#fee2e2;
-padding:10px;
-border-radius:8px;
-color:#991b1b;
-white-space:pre-wrap;
-}
-
+:root{font-family:Arial,sans-serif;color:#172033;background:#f5f7fb}
+*{box-sizing:border-box}
+body{max-width:1050px;margin:auto;padding:20px}
+.card{background:#fff;padding:22px;margin-bottom:20px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+h1,h2{margin-top:0}
+button{background:#2563eb;color:#fff;border:0;padding:12px 18px;border-radius:8px;cursor:pointer;font-weight:700}
+button.secondary{background:#fff;color:#2563eb;border:1px solid #2563eb}
+button.danger{background:#dc2626}
+button:disabled{opacity:.55;cursor:not-allowed}
+input,select{width:100%;padding:11px;border:1px solid #d7dce5;border-radius:8px;background:#fff;font:inherit}
+label{display:block;font-weight:700;margin-bottom:7px}
+.form-grid{display:grid;grid-template-columns:1.1fr 1fr auto;gap:12px;align-items:end}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.rank{padding:10px;margin-bottom:8px;background:#f3f4f6;border-radius:8px}
+.user{padding:10px 0;border-bottom:1px solid #eee}
+.error,.notice{padding:12px;border-radius:8px;white-space:pre-wrap}
+.error{background:#fee2e2;color:#991b1b}
+.notice{background:#fff7ed;border:1px solid #fdba74;color:#9a3412;margin-bottom:14px}
+.success{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46}
+.hidden{display:none!important}
+.config-table{width:100%;border-collapse:collapse;margin-top:16px}
+.config-table th,.config-table td{padding:10px;border:1px solid #e2e8f0;text-align:left}
+.config-table th{background:#f8fafc}
+.debug{max-height:180px;overflow:auto;font-size:12px}
+.small{color:#64748b;font-size:13px}
+@media(max-width:720px){.form-grid{grid-template-columns:1fr}.config-table{font-size:14px}}
 </style>
-
 </head>
-
 <body>
-
 <div class="card">
-
 <h1>📊 Dashboard khảo sát</h1>
-
-<button onclick="loadData()">
-🔄 Làm mới
-</button>
-
+<div class="actions"><button id="refreshBtn" type="button">🔄 Làm mới</button></div>
 </div>
 
 <div class="card">
-
-<h2>👥 Tổng số người tham gia</h2>
-
-<div id="totalUsers">
-Đang tải...
+<h2>⚙️ Cài đặt mã lớp</h2>
+<p>Mỗi mã lớp có thể giới hạn một người gửi một lần mỗi tuần hoặc mỗi tháng.</p>
+<div id="configNotice" class="notice hidden"></div>
+<div class="form-grid">
+<div><label for="newCode">Mã lớp</label><input id="newCode" type="text" placeholder="Ví dụ: F0"></div>
+<div><label for="newFrequency">Chu kỳ điền lịch</label><select id="newFrequency"><option value="weekly">Hàng tuần</option><option value="monthly">Hàng tháng</option></select></div>
+<button id="addClassBtn" type="button">Thêm mã lớp</button>
+</div>
+<table class="config-table">
+<thead><tr><th>Mã lớp</th><th>Chu kỳ</th><th>Trạng thái</th><th></th></tr></thead>
+<tbody id="configBody"><tr><td colspan="4">Đang tải...</td></tr></tbody>
+</table>
+<div class="actions">
+<button id="saveConfigBtn" type="button">💾 Lưu cài đặt</button>
+</div>
+<p class="small">Nếu đã đặt Script Property <strong>ADMIN_KEY</strong>, hệ thống sẽ hỏi khóa quản trị khi lưu.</p>
 </div>
 
-</div>
-
-<div class="card">
-
-<h2>🏆 Top khung giờ</h2>
-
-<div id="topSlots">
-Đang tải...
-</div>
-
-</div>
-
-<div class="card">
-
-<h2>📋 Danh sách người tham gia</h2>
-
-<div id="userList">
-Đang tải...
-</div>
-
-</div>
-
-<div class="card">
-
-<h2>🛠 Debug</h2>
-
-<div id="debug">
--
-</div>
-
-</div>
+<div class="card"><h2>👥 Tổng số lượt tham gia</h2><div id="totalUsers">Đang tải...</div></div>
+<div class="card"><h2>🏆 Top khung giờ</h2><div id="topSlots">Đang tải...</div></div>
+<div class="card"><h2>📋 Danh sách người tham gia</h2><div id="userList">Đang tải...</div></div>
+<div class="card"><h2>🛠 Debug</h2><div id="debug" class="debug">-</div></div>
 
 <script>
+const API_URL="https://script.google.com/macros/s/AKfycby01TUheArOTWsUdffWpNzmbwT26p5U8LNT1pU8KiBI9leEcSV-A0tLafDpvu9XHve5yA/exec";
+let backendReady=false;
+let configDraft=[];
 
-const API_URL =
-"https://script.google.com/macros/s/AKfycby01TUheArOTWsUdffWpNzmbwT26p5U8LNT1pU8KiBI9leEcSV-A0tLafDpvu9XHve5yA/exec";
+function escapeHtml(value){
+  return String(value==null?"":value).replace(/[&<>"']/g,function(char){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char];
+  });
+}
+
+async function requestJson(url,options){
+  const response=await fetch(url,options);
+  const text=await response.text();
+  try{return JSON.parse(text)}catch(error){throw new Error("Phản hồi máy chủ không hợp lệ")}
+}
+
+function showConfigNotice(message,isSuccess){
+  const box=document.getElementById("configNotice");
+  box.textContent=message||"";
+  box.classList.toggle("hidden",!message);
+  box.classList.toggle("success",Boolean(isSuccess));
+}
+
+async function loadConfig(){
+  try{
+    const data=await requestJson(API_URL+"?action=config&t="+Date.now());
+    if(!data||data.version<2||!Array.isArray(data.classes)){
+      backendReady=false;
+      configDraft=[];
+      renderConfig();
+      showConfigNotice("Apps Script hiện tại chưa có API cấu hình. Hãy cập nhật Code.gs và triển khai phiên bản mới trước khi lưu mã lớp.");
+      document.getElementById("saveConfigBtn").disabled=true;
+      return;
+    }
+    backendReady=true;
+    configDraft=data.classes.map(function(item){
+      return {code:String(item.code||"").toUpperCase(),frequency:item.frequency==="monthly"?"monthly":"weekly",active:item.active!==false};
+    });
+    document.getElementById("saveConfigBtn").disabled=false;
+    showConfigNotice("");
+    renderConfig();
+  }catch(error){
+    backendReady=false;
+    renderConfig();
+    showConfigNotice("Không tải được cấu hình: "+error.message);
+    document.getElementById("saveConfigBtn").disabled=true;
+  }
+}
+
+function renderConfig(){
+  const body=document.getElementById("configBody");
+  body.innerHTML="";
+  if(!configDraft.length){
+    body.innerHTML='<tr><td colspan="4">Chưa có mã lớp.</td></tr>';
+    return;
+  }
+  configDraft.forEach(function(item,index){
+    const row=document.createElement("tr");
+    row.innerHTML='<td><strong>'+escapeHtml(item.code)+'</strong></td>'
+      +'<td><select data-field="frequency" data-index="'+index+'"><option value="weekly" '+(item.frequency==="weekly"?"selected":"")+'>Hàng tuần</option><option value="monthly" '+(item.frequency==="monthly"?"selected":"")+'>Hàng tháng</option></select></td>'
+      +'<td><label><input type="checkbox" data-field="active" data-index="'+index+'" '+(item.active?"checked":"")+'> Hoạt động</label></td>'
+      +'<td><button class="danger" type="button" data-remove="'+index+'">Xóa</button></td>';
+    body.appendChild(row);
+  });
+}
+
+function addClass(){
+  const input=document.getElementById("newCode");
+  const code=input.value.trim().toUpperCase();
+  const frequency=document.getElementById("newFrequency").value;
+  if(!/^[A-Z0-9_-]{1,20}$/.test(code)){
+    alert("Mã lớp chỉ gồm chữ, số, dấu gạch ngang hoặc gạch dưới.");
+    return;
+  }
+  if(configDraft.some(function(item){return item.code===code})){
+    alert("Mã lớp đã tồn tại.");
+    return;
+  }
+  configDraft.push({code:code,frequency:frequency,active:true});
+  input.value="";
+  renderConfig();
+}
+
+async function saveConfig(){
+  if(!backendReady){
+    alert("Cần cập nhật Apps Script trước khi lưu.");
+    return;
+  }
+  let adminKey="";
+  if(window.confirm("Bạn có dùng ADMIN_KEY trong Script Properties không?")){
+    adminKey=window.prompt("Nhập ADMIN_KEY:")||"";
+  }
+  const button=document.getElementById("saveConfigBtn");
+  button.disabled=true;
+  try{
+    const result=await requestJson(API_URL,{
+      method:"POST",
+      body:JSON.stringify({action:"saveConfig",adminKey:adminKey,classes:configDraft})
+    });
+    if(!result.success)throw new Error(result.message||"Không thể lưu cài đặt");
+    configDraft=result.classes||configDraft;
+    renderConfig();
+    showConfigNotice("Đã lưu cài đặt mã lớp.",true);
+  }catch(error){
+    showConfigNotice("Lưu thất bại: "+error.message);
+  }finally{
+    button.disabled=false;
+  }
+}
+
+function parseSlots(item){
+  let slots=item.Availability||item.availability||[];
+  if(typeof slots==="string"){
+    try{slots=JSON.parse(slots)}catch(error){slots=[]}
+  }
+  return Array.isArray(slots)?slots:[];
+}
 
 async function loadData(){
+  document.getElementById("debug").textContent="Đang tải dữ liệu...";
+  try{
+    const data=await requestJson(API_URL+"?t="+Date.now());
+    const records=Array.isArray(data)?data:(data.responses||[]);
+    document.getElementById("debug").textContent=JSON.stringify(records.slice(0,5),null,2);
+    document.getElementById("totalUsers").innerHTML="<strong>"+records.length+"</strong> lượt";
 
-try{
+    const userList=document.getElementById("userList");
+    userList.innerHTML="";
+    const slotCounter={};
+    records.forEach(function(item){
+      const row=document.createElement("div");
+      row.className="user";
+      const classText=item.ClassCode?" · Lớp "+item.ClassCode:"";
+      const periodText=item.PeriodKey?" · "+item.PeriodKey:"";
+      row.textContent="✅ "+(item.Name||"Không tên")+classText+periodText;
+      userList.appendChild(row);
+      parseSlots(item).forEach(function(slot){
+        const key=slot.day+" "+slot.period;
+        slotCounter[key]=(slotCounter[key]||0)+1;
+      });
+    });
+    if(!records.length)userList.textContent="Chưa có dữ liệu";
 
-document.getElementById("debug").innerHTML =
-"Đang tải dữ liệu...";
-
-const response =
-await fetch(API_URL);
-
-const text =
-await response.text();
-
-document.getElementById("debug").innerHTML =
-text.substring(0,500);
-
-const data =
-JSON.parse(text);
-
-document.getElementById("totalUsers").innerHTML =
-"<strong>" +
-data.length +
-"</strong> người";
-
-let usersHTML = "";
-
-let slotCounter = {};
-
-for(let i=0;i<data.length;i++){
-
-const item = data[i];
-
-usersHTML +=
-'<div class="user">✅ '
-+
-(item.Name || "Không tên")
-+
-'</div>';
-
-if(item.Availability){
-
-try{
-
-const slots =
-JSON.parse(
-item.Availability
-);
-
-for(let j=0;j<slots.length;j++){
-
-const slot =
-slots[j];
-
-const key =
-slot.day +
-" " +
-slot.period;
-
-slotCounter[key] =
-(slotCounter[key] || 0)
-+ 1;
-
+    const sorted=Object.keys(slotCounter).map(function(key){return [key,slotCounter[key]]})
+      .sort(function(a,b){return b[1]-a[1]}).slice(0,10);
+    const top=document.getElementById("topSlots");
+    top.innerHTML="";
+    if(!sorted.length){top.textContent="Chưa có dữ liệu";return}
+    const icons=["🥇","🥈","🥉"];
+    sorted.forEach(function(item,index){
+      const row=document.createElement("div");
+      row.className="rank";
+      row.textContent=(icons[index]||"🏅")+" "+item[0]+" — "+item[1]+" phiếu";
+      top.appendChild(row);
+    });
+  }catch(error){
+    document.getElementById("debug").innerHTML='<div class="error">'+escapeHtml(error.message)+'</div>';
+  }
 }
 
-}
-catch(err){
-
-console.log(err);
-
-}
-
-}
-
-}
-
-document.getElementById(
-"userList"
-).innerHTML =
-usersHTML;
-
-const sorted =
-Object.entries(
-slotCounter
-)
-.sort(
-(a,b)=>
-b[1]-a[1]
-);
-
-let topHTML="";
-
-for(
-let i=0;
-i<sorted.length && i<10;
-i++
-){
-
-const item =
-sorted[i];
-
-let icon="🏅";
-
-if(i===0) icon="🥇";
-if(i===1) icon="🥈";
-if(i===2) icon="🥉";
-
-topHTML +=
-
-'<div class="rank">'
-
-+ icon
-
-+ ' '
-
-+ item[0]
-
-+ ' — '
-
-+ item[1]
-
-+ ' phiếu'
-
-+ '</div>';
-
-}
-
-if(topHTML===""){
-
-topHTML =
-"Chưa có dữ liệu";
-
-}
-
-document.getElementById(
-"topSlots"
-).innerHTML =
-topHTML;
-
-}
-catch(error){
-
-document.getElementById(
-"debug"
-).innerHTML =
-
-'<div class="error">'
-
-+ error
-
-+ '</div>';
-
-console.error(error);
-
-}
-
-}
-
+document.getElementById("refreshBtn").addEventListener("click",function(){loadConfig();loadData()});
+document.getElementById("addClassBtn").addEventListener("click",addClass);
+document.getElementById("saveConfigBtn").addEventListener("click",saveConfig);
+document.getElementById("configBody").addEventListener("change",function(event){
+  const index=Number(event.target.dataset.index);
+  if(!Number.isInteger(index)||!configDraft[index])return;
+  if(event.target.dataset.field==="frequency")configDraft[index].frequency=event.target.value;
+  if(event.target.dataset.field==="active")configDraft[index].active=event.target.checked;
+});
+document.getElementById("configBody").addEventListener("click",function(event){
+  if(event.target.dataset.remove==null)return;
+  configDraft.splice(Number(event.target.dataset.remove),1);
+  renderConfig();
+});
+loadConfig();
 loadData();
-
 </script>
-
 </body>
 </html>
