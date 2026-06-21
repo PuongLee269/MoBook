@@ -1,4 +1,4 @@
-var API_VERSION = 2;
+var API_VERSION = 3;
 var TIME_ZONE = "Asia/Bangkok";
 var RESPONSE_SHEET = "Responses";
 var CLASS_SHEET = "Classes";
@@ -57,6 +57,10 @@ function doPost(e) {
       return jsonOutput_({success: true, version: API_VERSION, classes: classes});
     }
 
+    if (action === "resetResponse") {
+      return resetResponse_(data);
+    }
+
     if (action !== "submit") {
       return jsonOutput_({success: false, version: API_VERSION, message: "Hành động không hợp lệ."});
     }
@@ -109,8 +113,13 @@ function submitResponse_(data) {
       });
     }
 
+    var responseId = Utilities.getUuid();
+    var resetToken = Utilities.getUuid();
+
     appendResponse_({
       Timestamp: new Date(),
+      ResponseId: responseId,
+      ResetToken: resetToken,
       Name: name,
       Morning: numberInRange_(data.morning, 1, 5),
       Afternoon: numberInRange_(data.afternoon, 1, 5),
@@ -126,11 +135,65 @@ function submitResponse_(data) {
     return jsonOutput_({
       success: true,
       version: API_VERSION,
+      responseId: responseId,
+      resetToken: resetToken,
       classCode: classCode,
       periodKey: period.key,
       periodLabel: period.label,
       topSlots: buildTopSlots_(records, classCode, period.key)
     });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function resetResponse_(data) {
+  var responseId = String(data.responseId || "");
+  var resetToken = String(data.resetToken || "");
+  var name = String(data.name || "").trim();
+  var classCode = normalizeClassCode_(data.classCode);
+  var periodKey = String(data.periodKey || "");
+
+  if (!periodKey) {
+    var config = findClassConfig_(classCode);
+    if (config) periodKey = getPeriod_(config.frequency, new Date()).key;
+  }
+
+  if ((!responseId || !resetToken) && (!name || !classCode || !periodKey)) {
+    return jsonOutput_({success: false, version: API_VERSION, message: "Thiếu thông tin để xóa lượt vừa gửi."});
+  }
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+
+  try {
+    var requiredHeaders = ["Timestamp", "Name", "Morning", "Afternoon", "Evening", "Availability", "ClassCode", "Frequency", "PeriodKey", "ResponseId", "ResetToken"];
+    var sheet = getOrCreateSheet_(RESPONSE_SHEET, requiredHeaders);
+    var headers = ensureHeaders_(sheet, requiredHeaders);
+    var values = sheet.getDataRange().getValues();
+    var responseIdIndex = headers.indexOf("ResponseId");
+    var resetTokenIndex = headers.indexOf("ResetToken");
+    var nameIndex = headers.indexOf("Name");
+    var classIndex = headers.indexOf("ClassCode");
+    var periodIndex = headers.indexOf("PeriodKey");
+
+    for (var i = values.length - 1; i >= 1; i--) {
+      var exactMatch = responseId && resetToken
+        && String(values[i][responseIdIndex] || "") === responseId
+        && String(values[i][resetTokenIndex] || "") === resetToken;
+
+      var legacyMatch = !responseId && !resetToken
+        && normalizeName_(values[i][nameIndex]) === normalizeName_(name)
+        && normalizeClassCode_(values[i][classIndex]) === classCode
+        && String(values[i][periodIndex] || "") === periodKey;
+
+      if (exactMatch || legacyMatch) {
+        sheet.deleteRow(i + 1);
+        return jsonOutput_({success: true, version: API_VERSION, deleted: true});
+      }
+    }
+
+    return jsonOutput_({success: false, version: API_VERSION, message: "Không tìm thấy lượt vừa gửi để đặt lại."});
   } finally {
     lock.releaseLock();
   }
@@ -236,7 +299,7 @@ function findClassConfig_(classCode) {
 }
 
 function getResponseObjects_() {
-  var headers = ["Timestamp", "Name", "Morning", "Afternoon", "Evening", "Availability", "ClassCode", "Frequency", "PeriodKey"];
+  var headers = ["Timestamp", "Name", "Morning", "Afternoon", "Evening", "Availability", "ClassCode", "Frequency", "PeriodKey", "ResponseId", "ResetToken"];
   var sheet = getOrCreateSheet_(RESPONSE_SHEET, headers);
   ensureHeaders_(sheet, headers);
 
@@ -259,7 +322,7 @@ function getResponseObjects_() {
 }
 
 function appendResponse_(record) {
-  var requiredHeaders = ["Timestamp", "Name", "Morning", "Afternoon", "Evening", "Availability", "ClassCode", "Frequency", "PeriodKey"];
+  var requiredHeaders = ["Timestamp", "Name", "Morning", "Afternoon", "Evening", "Availability", "ClassCode", "Frequency", "PeriodKey", "ResponseId", "ResetToken"];
   var sheet = getOrCreateSheet_(RESPONSE_SHEET, requiredHeaders);
   var headers = ensureHeaders_(sheet, requiredHeaders);
   var row = headers.map(function (header) {
