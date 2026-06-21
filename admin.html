@@ -5,23 +5,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>Admin - Khảo sát lịch học</title>
+<title>Dashboard khảo sát</title>
 
 <style>
 
 body{
 font-family:Arial,sans-serif;
 background:#f5f7fb;
-padding:20px;
 max-width:1000px;
 margin:auto;
+padding:20px;
 }
 
 .card{
-background:white;
+background:#fff;
 padding:20px;
-border-radius:12px;
 margin-bottom:20px;
+border-radius:12px;
 box-shadow:0 2px 8px rgba(0,0,0,.08);
 }
 
@@ -29,25 +29,33 @@ h1,h2{
 margin-top:0;
 }
 
+button{
+background:#2563eb;
+color:white;
+border:none;
+padding:12px 18px;
+border-radius:8px;
+cursor:pointer;
+}
+
 .rank{
-padding:12px;
-margin-bottom:10px;
-border-radius:10px;
+padding:10px;
+margin-bottom:8px;
 background:#f3f4f6;
+border-radius:8px;
 }
 
 .user{
-padding:8px;
+padding:8px 0;
 border-bottom:1px solid #eee;
 }
 
-button{
-padding:12px 18px;
-border:none;
-background:#2563eb;
-color:white;
+.error{
+background:#fee2e2;
+padding:10px;
 border-radius:8px;
-cursor:pointer;
+color:#991b1b;
+white-space:pre-wrap;
 }
 
 </style>
@@ -80,7 +88,9 @@ cursor:pointer;
 
 <h2>🏆 Top khung giờ</h2>
 
-<div id="topSlots"></div>
+<div id="topSlots">
+Đang tải...
+</div>
 
 </div>
 
@@ -88,7 +98,19 @@ cursor:pointer;
 
 <h2>📋 Danh sách người tham gia</h2>
 
-<div id="userList"></div>
+<div id="userList">
+Đang tải...
+</div>
+
+</div>
+
+<div class="card">
+
+<h2>🛠 Debug</h2>
+
+<div id="debug">
+-
+</div>
 
 </div>
 
@@ -101,15 +123,22 @@ async function loadData(){
 
 try{
 
+document.getElementById("debug").innerHTML =
+"Đang tải dữ liệu...";
+
 const response =
 await fetch(API_URL);
 
-const data =
-await response.json();
+const text =
+await response.text();
 
-document.getElementById(
-"totalUsers"
-).innerHTML =
+document.getElementById("debug").innerHTML =
+text.substring(0,500);
+
+const data =
+JSON.parse(text);
+
+document.getElementById("totalUsers").innerHTML =
 "<strong>" +
 data.length +
 "</strong> người";
@@ -118,12 +147,18 @@ let usersHTML = "";
 
 let slotCounter = {};
 
-data.forEach(function(item){
+for(let i=0;i<data.length;i++){
+
+const item = data[i];
 
 usersHTML +=
 '<div class="user">✅ '
-+ item.Name +
++
+(item.Name || "Không tên")
++
 '</div>';
+
+if(item.Availability){
 
 try{
 
@@ -132,7 +167,10 @@ JSON.parse(
 item.Availability
 );
 
-slots.forEach(function(slot){
+for(let j=0;j<slots.length;j++){
+
+const slot =
+slots[j];
 
 const key =
 slot.day +
@@ -141,13 +179,20 @@ slot.period;
 
 slotCounter[key] =
 (slotCounter[key] || 0)
-+ 1;
+\+ 1;
 
-});
+}
 
-}catch(err){}
+}
+catch(err){
 
-});
+console.log(err);
+
+}
+
+}
+
+}
 
 document.getElementById(
 "userList"
@@ -155,35 +200,57 @@ document.getElementById(
 usersHTML;
 
 const sorted =
-Object.entries(slotCounter)
-.sort(function(a,b){
-
-return b[1]-a[1];
-
-});
+Object.entries(
+slotCounter
+)
+.sort(
+(a,b)=>
+b[1]-a[1]
+);
 
 let topHTML="";
 
-sorted.slice(0,10)
-.forEach(function(item,index){
+for(
+let i=0;
+i<sorted.length && i<10;
+i++
+){
+
+const item =
+sorted[i];
 
 let icon="🏅";
 
-if(index===0) icon="🥇";
-if(index===1) icon="🥈";
-if(index===2) icon="🥉";
+if(i===0) icon="🥇";
+if(i===1) icon="🥈";
+if(i===2) icon="🥉";
 
 topHTML +=
+
 '<div class="rank">'
+
 + icon
+
 + ' '
+
 + item[0]
-+ ' - '
+
++ ' — '
+
 + item[1]
+
 + ' phiếu'
+
 + '</div>';
 
-});
+}
+
+if(topHTML===""){
+
+topHTML =
+"Chưa có dữ liệu";
+
+}
 
 document.getElementById(
 "topSlots"
@@ -193,11 +260,17 @@ topHTML;
 }
 catch(error){
 
-console.error(error);
+document.getElementById(
+"debug"
+).innerHTML =
 
-alert(
-"Lỗi tải dữ liệu"
-);
+'<div class="error">'
+
++ error
+
++ '</div>';
+
+console.error(error);
 
 }
 
