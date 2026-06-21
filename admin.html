@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Admin - Khảo sát lịch học</title>
+
+<style>
+
+body{
+font-family:Arial,sans-serif;
+background:#f5f7fb;
+padding:20px;
+max-width:1000px;
+margin:auto;
+}
+
+.card{
+background:white;
+padding:20px;
+border-radius:12px;
+margin-bottom:20px;
+box-shadow:0 2px 8px rgba(0,0,0,.08);
+}
+
+h1,h2{
+margin-top:0;
+}
+
+.rank{
+padding:12px;
+margin-bottom:10px;
+border-radius:10px;
+background:#f3f4f6;
+}
+
+.user{
+padding:8px;
+border-bottom:1px solid #eee;
+}
+
+button{
+padding:12px 18px;
+border:none;
+background:#2563eb;
+color:white;
+border-radius:8px;
+cursor:pointer;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="card">
+
+<h1>📊 Dashboard khảo sát</h1>
+
+<button onclick="loadData()">
+🔄 Làm mới
+</button>
+
+</div>
+
+<div class="card">
+
+<h2>👥 Tổng số người tham gia</h2>
+
+<div id="totalUsers">
+Đang tải...
+</div>
+
+</div>
+
+<div class="card">
+
+<h2>🏆 Top khung giờ</h2>
+
+<div id="topSlots"></div>
+
+</div>
+
+<div class="card">
+
+<h2>📋 Danh sách người tham gia</h2>
+
+<div id="userList"></div>
+
+</div>
+
+<script>
+
+const API_URL =
+"https://script.google.com/macros/s/AKfycbwyXy8Lk2XGSj_1kADn5J80CIGtFwwiOQ6uhWhqttFE/dev";
+
+loadData();
+
+async function loadData(){
+
+try{
+
+const res =
+await fetch(API_URL);
+
+const data =
+await res.json();
+
+document
+.getElementById("totalUsers")
+.innerHTML =
+"<strong>" +
+data.length +
+"</strong> người";
+
+let usersHTML = "";
+
+let slotCounter = {};
+
+data.forEach(item=>{
+
+usersHTML +=
+'<div class="user">✅ '
++ item.Name +
+'</div>';
+
+try{
+
+const slots =
+JSON.parse(
+item.Availability
+);
+
+slots.forEach(slot=>{
+
+const key =
+slot.day +
+" " +
+slot.period;
+
+slotCounter[key] =
+(slotCounter[key] || 0)
+\+ 1;
+
+});
+
+}catch(e){}
+
+});
+
+document
+.getElementById("userList")
+.innerHTML =
+usersHTML;
+
+const sorted =
+Object.entries(slotCounter)
+.sort(
+(a,b)=>
+b[1]-a[1]
+);
+
+let topHTML = "";
+
+sorted
+.slice(0,10)
+.forEach((item,index)=>{
+
+let icon = "🏅";
+
+if(index===0) icon="🥇";
+if(index===1) icon="🥈";
+if(index===2) icon="🥉";
+
+topHTML +=
+
+'<div class="rank">'
++ icon
++ ' '
++ item[0]
++ ' — '
++ item[1]
++ ' phiếu'
++ '</div>';
+
+});
+
+if(topHTML===""){
+
+topHTML =
+"Chưa có dữ liệu";
+
+}
+
+document
+.getElementById("topSlots")
+.innerHTML =
+topHTML;
+
+}catch(error){
+
+alert(
+"Lỗi tải dữ liệu"
+);
+
+console.error(error);
+
+}
+
+}
+
+</script>
+
+</body>
+</html>
