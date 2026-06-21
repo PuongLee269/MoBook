@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Khảo sát lịch học</title>
+
+<style>
+
+body{
+font-family:Arial,sans-serif;
+background:#f5f7fb;
+padding:20px;
+max-width:900px;
+margin:auto;
+}
+
+.card{
+background:white;
+padding:20px;
+border-radius:12px;
+margin-bottom:20px;
+box-shadow:0 2px 8px rgba(0,0,0,.08);
+}
+
+h1,h2{
+margin-top:0;
+}
+
+input[type=text]{
+width:100%;
+padding:12px;
+font-size:16px;
+border:1px solid #ddd;
+border-radius:8px;
+margin-top:10px;
+}
+
+.rating{
+margin-bottom:20px;
+}
+
+.star{
+font-size:34px;
+cursor:pointer;
+color:#ddd;
+}
+
+.star.active{
+color:#ffb400;
+}
+
+button{
+padding:14px 20px;
+border:none;
+border-radius:8px;
+background:#2563eb;
+color:white;
+cursor:pointer;
+font-size:15px;
+}
+
+button:hover{
+opacity:.9;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+}
+
+th,td{
+border:1px solid #ddd;
+padding:10px;
+text-align:center;
+}
+
+.slot{
+width:22px;
+height:22px;
+}
+
+.hidden{
+display:none;
+}
+
+.success{
+padding:20px;
+background:#ecfdf5;
+border:1px solid #a7f3d0;
+border-radius:10px;
+color:#065f46;
+font-size:18px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="card">
+
+<h1>📅 Khảo sát lịch học</h1>
+
+<p>
+Vui lòng cho biết thời gian bạn thường rảnh.
+</p>
+
+<label>
+👤 Tên của bạn
+</label>
+
+<input
+id="userName"
+type="text"
+placeholder="Nhập tên">
+
+</div>
+
+<div class="card">
+
+<h2>⭐ Mức độ rảnh</h2>
+
+<div class="rating">
+
+<div>🌅 Sáng</div>
+
+<div id="morningStars"></div>
+
+</div>
+
+<div class="rating">
+
+<div>🌤️ Chiều</div>
+
+<div id="afternoonStars"></div>
+
+</div>
+
+<div class="rating">
+
+<div>🌙 Tối</div>
+
+<div id="eveningStars"></div>
+
+</div>
+
+<button onclick="generateSchedule()">
+Tiếp tục
+</button>
+
+</div>
+
+<div
+id="scheduleCard"
+class="card hidden">
+
+<h2>
+✏️ Tinh chỉnh lịch
+</h2>
+
+<p>
+Bỏ chọn những buổi bạn thường bận.
+</p>
+
+<table>
+
+<thead>
+
+<tr>
+
+<th></th>
+
+<th>🌅</th>
+
+<th>🌤️</th>
+
+<th>🌙</th>
+
+</tr>
+
+</thead>
+
+<tbody id="scheduleBody">
+
+</tbody>
+
+</table>
+
+<br>
+
+<button onclick="submitVote()">
+📨 Gửi khảo sát
+</button>
+
+</div>
+
+<div
+id="successCard"
+class="card hidden">
+
+<div class="success">
+
+🎉 Cảm ơn bạn!
+
+<br><br>
+
+Khảo sát đã được ghi nhận thành công.
+
+</div>
+
+</div>
+
+<script>
+
+const API_URL =
+"https://script.google.com/macros/s/AKfycbwyXy8Lk2XGSj_1kADn5J80CIGtFwwiOQ6uhWhqttFE/dev";
+
+const ratings = {
+
+morning:1,
+afternoon:1,
+evening:1
+
+};
+
+const days = [
+
+"T2",
+"T3",
+"T4",
+"T5",
+"T6",
+"T7",
+"CN"
+
+];
+
+function createStars(
+containerId,
+key
+){
+
+const container =
+document.getElementById(
+containerId
+);
+
+for(let i=1;i<=5;i++){
+
+const star =
+document.createElement(
+"span"
+);
+
+star.className =
+"star";
+
+star.innerHTML =
+"★";
+
+star.onclick =
+function(){
+
+ratings[key]=i;
+
+Array.from(
+container.children
+)
+.forEach(
+function(s,index){
+
+s.classList.toggle(
+"active",
+index < i
+);
+
+}
+);
+
+};
+
+container.appendChild(
+star
+);
+
+}
+
+}
+
+createStars(
+"morningStars",
+"morning"
+);
+
+createStars(
+"afternoonStars",
+"afternoon"
+);
+
+createStars(
+"eveningStars",
+"evening"
+);
+
+function generateSchedule(){
+
+const name =
+document
+.getElementById(
+"userName"
+)
+.value
+.trim();
+
+if(!name){
+
+alert(
+"Vui lòng nhập tên"
+);
+
+return;
+
+}
+
+const body =
+document
+.getElementById(
+"scheduleBody"
+);
+
+body.innerHTML="";
+
+days.forEach(day=>{
+
+const row =
+document.createElement(
+"tr"
+);
+
+row.innerHTML =
+
+'<td>' + day + '</td>' +
+
+'<td><input class="slot" type="checkbox" data-day="' + day + '" data-period="Sáng" '
+
++
+
+(ratings.morning >=3
+? 'checked'
+: '')
+
++
+
+'></td>'
+
++
+
+'<td><input class="slot" type="checkbox" data-day="' + day + '" data-period="Chiều" '
+
++
+
+(ratings.afternoon >=3
+? 'checked'
+: '')
+
++
+
+'></td>'
+
++
+
+'<td><input class="slot" type="checkbox" data-day="' + day + '" data-period="Tối" '
+
++
+
+(ratings.evening >=3
+? 'checked'
+: '')
+
++
+
+'></td>';
+
+body.appendChild(
+row
+);
+
+});
+
+document
+.getElementById(
+"scheduleCard"
+)
+.classList.remove(
+"hidden"
+);
+
+window.scrollTo({
+
+top:
+document.body.scrollHeight,
+
+behavior:
+"smooth"
+
+});
+
+}
+
+async function submitVote(){
+
+const name =
+document
+.getElementById(
+"userName"
+)
+.value
+.trim();
+
+let availability=[];
+
+document
+.querySelectorAll(
+".slot"
+)
+.forEach(function(box){
+
+if(box.checked){
+
+availability.push({
+
+day:
+box.dataset.day,
+
+period:
+box.dataset.period
+
+});
+
+}
+
+});
+
+const payload = {
+
+name:name,
+
+morning:
+ratings.morning,
+
+afternoon:
+ratings.afternoon,
+
+evening:
+ratings.evening,
+
+availability:
+availability
+
+};
+
+try{
+
+const response =
+await fetch(
+API_URL,
+{
+method:"POST",
+body:JSON.stringify(
+payload
+)
+}
+);
+
+const result =
+await response.text();
+
+console.log(
+result
+);
+
+document
+.getElementById(
+"successCard"
+)
+.classList.remove(
+"hidden"
+);
+
+document
+.getElementById(
+"scheduleCard"
+)
+.classList.add(
+"hidden"
+);
+
+window.scrollTo({
+
+top:
+document.body.scrollHeight,
+
+behavior:
+"smooth"
+
+});
+
+}
+catch(error){
+
+console.error(
+error
+);
+
+alert(
+"Gửi dữ liệu thất bại"
+);
+
+}
+
+}
+
+</script>
+
+</body>
+</html>
