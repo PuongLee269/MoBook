@@ -274,17 +274,8 @@ async function submitVote(){
 }
 
 function resetForm(){
-  document.getElementById("userName").value="";
-  ratings.morning=1;ratings.afternoon=1;ratings.evening=1;
-  paintStars("morningStars","morning");
-  paintStars("afternoonStars","afternoon");
-  paintStars("eveningStars","evening");
-  document.getElementById("scheduleBody").innerHTML="";
-  document.getElementById("successCard").classList.add("hidden");
-  document.getElementById("scheduleCard").classList.add("hidden");
-  document.getElementById("identityCard").classList.remove("hidden");
-  document.getElementById("ratingCard").classList.remove("hidden");
-  window.scrollTo({top:0,behavior:"smooth"});
+  const cleanUrl=window.location.origin+window.location.pathname+"?refill="+Date.now();
+  window.location.replace(cleanUrl);
 }
 
 document.getElementById("continueBtn").addEventListener("click",generateSchedule);
