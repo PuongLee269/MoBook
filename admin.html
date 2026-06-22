@@ -32,10 +32,24 @@ button.compact{padding:8px 10px;font-size:13px}
 .config-table th{background:#f8fafc}
 .debug{max-height:180px;overflow:auto;font-size:12px}
 .small{color:#64748b;font-size:13px}
+.admin-lock{min-height:80vh;display:grid;place-items:center}
+.login-card{width:min(420px,100%);background:#fff;padding:26px;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.12)}
+.login-error{color:#b91c1c;margin-top:10px}
 @media(max-width:720px){.form-grid{grid-template-columns:1fr}.config-table{font-size:14px}}
 </style>
 </head>
 <body>
+<div id="adminLock" class="admin-lock">
+  <div class="login-card">
+    <h1>🔐 Đăng nhập Admin</h1>
+    <p>Nhập mật khẩu quản trị để xem và chỉnh sửa dữ liệu khảo sát.</p>
+    <label for="loginPassword">Mật khẩu</label>
+    <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu Admin">
+    <div class="actions"><button id="loginBtn" type="button">Đăng nhập</button></div>
+    <div id="loginError" class="login-error"></div>
+  </div>
+</div>
+<div id="adminApp" class="hidden">
 <div class="card">
 <h1>📊 Dashboard khảo sát</h1>
 <div class="actions"><button id="refreshBtn" type="button">🔄 Làm mới</button></div>
@@ -50,11 +64,6 @@ button.compact{padding:8px 10px;font-size:13px}
 <div><label for="newFrequency">Chu kỳ điền lịch</label><select id="newFrequency"><option value="weekly">Hàng tuần</option><option value="monthly">Hàng tháng</option></select></div>
 <button id="addClassBtn" type="button">Thêm mã lớp</button>
 </div>
-<div style="margin-top:16px">
-<label for="adminKey">ADMIN_KEY (tùy chọn)</label>
-<input id="adminKey" type="password" autocomplete="current-password" placeholder="Để trống nếu chưa tạo ADMIN_KEY">
-<div class="small">Bạn tự tạo khóa này tại Apps Script → Project Settings → Script Properties. Tên thuộc tính là ADMIN_KEY.</div>
-</div>
 <table class="config-table">
 <thead><tr><th>Mã lớp</th><th>Chu kỳ</th><th>Trạng thái</th><th></th></tr></thead>
 <tbody id="configBody"><tr><td colspan="4">Đang tải...</td></tr></tbody>
@@ -62,7 +71,7 @@ button.compact{padding:8px 10px;font-size:13px}
 <div class="actions">
 <button id="saveConfigBtn" type="button">💾 Lưu cài đặt</button>
 </div>
-<p class="small">Nếu chưa tạo Script Property <strong>ADMIN_KEY</strong>, cứ để trống ô khóa quản trị.</p>
+<p class="small">Các thao tác quản trị đang được bảo vệ bởi mật khẩu đăng nhập.</p>
 </div>
 
 <div class="card"><h2>👥 Tổng số lượt tham gia</h2><div id="totalUsers">Đang tải...</div></div>
@@ -70,11 +79,13 @@ button.compact{padding:8px 10px;font-size:13px}
 <div class="card"><h2>📋 Danh sách người tham gia</h2><div id="userList">Đang tải...</div></div>
 <div class="card"><h2>🛠 Debug</h2><div id="debug" class="debug">-</div></div>
 
+</div>
 <script>
 const API_URL="https://script.google.com/macros/s/AKfycbwJrkUHeDnWx48b-qxnWsJmt-dfEskQ1VLPCwuF7f8LFE68r3T3212QDGjWlpSJz4Ru0Q/exec";
 let backendReady=false;
 let configDraft=[];
 let apiVersion=0;
+let adminSessionKey="";
 
 function escapeHtml(value){
   return String(value==null?"":value).replace(/[&<>"']/g,function(char){
@@ -93,6 +104,31 @@ function showConfigNotice(message,isSuccess){
   box.textContent=message||"";
   box.classList.toggle("hidden",!message);
   box.classList.toggle("success",Boolean(isSuccess));
+}
+
+async function loginAdmin(){
+  const password=document.getElementById("loginPassword").value;
+  const button=document.getElementById("loginBtn");
+  const errorBox=document.getElementById("loginError");
+  if(!password){errorBox.textContent="Vui lòng nhập mật khẩu.";return}
+  button.disabled=true;
+  errorBox.textContent="";
+  try{
+    const result=await requestJson(API_URL,{
+      method:"POST",
+      body:JSON.stringify({action:"adminAuth",adminKey:password})
+    });
+    if(!result.success)throw new Error(result.message||"Mật khẩu không đúng");
+    adminSessionKey=password;
+    document.getElementById("adminLock").classList.add("hidden");
+    document.getElementById("adminApp").classList.remove("hidden");
+    await loadConfig();
+    await loadData();
+  }catch(error){
+    errorBox.textContent=error.message||"Đăng nhập thất bại";
+  }finally{
+    button.disabled=false;
+  }
 }
 
 async function loadConfig(){
@@ -161,7 +197,7 @@ async function saveConfig(){
     alert("Cần cập nhật Apps Script trước khi lưu.");
     return;
   }
-  const adminKey=document.getElementById("adminKey").value.trim();
+  const adminKey=adminSessionKey;
   const button=document.getElementById("saveConfigBtn");
   button.disabled=true;
   try{
@@ -181,7 +217,7 @@ async function saveConfig(){
 }
 
 async function runAdminAction(payload){
-  payload.adminKey=document.getElementById("adminKey").value.trim();
+  payload.adminKey=adminSessionKey;
   const result=await requestJson(API_URL,{method:"POST",body:JSON.stringify(payload)});
   if(!result.success)throw new Error(result.message||"Thao tác thất bại");
   return result;
@@ -220,7 +256,7 @@ function parseSlots(item){
 async function loadData(){
   document.getElementById("debug").textContent="Đang tải dữ liệu...";
   try{
-    const data=await requestJson(API_URL+"?t="+Date.now());
+    const data=await requestJson(API_URL+"?adminKey="+encodeURIComponent(adminSessionKey)+"&t="+Date.now());
     const records=Array.isArray(data)?data:(data.responses||[]);
     document.getElementById("debug").textContent=JSON.stringify(records.slice(0,5),null,2);
     document.getElementById("totalUsers").innerHTML="<strong>"+records.length+"</strong> lượt";
@@ -294,8 +330,10 @@ document.getElementById("userList").addEventListener("click",function(event){
   if(!event.target.dataset.deleteRow)return;
   deleteUserVote(Number(event.target.dataset.deleteRow),event.target.dataset.name,event.target.dataset.classCode);
 });
-loadConfig();
-loadData();
+document.getElementById("loginBtn").addEventListener("click",loginAdmin);
+document.getElementById("loginPassword").addEventListener("keydown",function(event){
+  if(event.key==="Enter")loginAdmin();
+});
 </script>
 </body>
 </html>
