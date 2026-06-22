@@ -237,7 +237,7 @@ async function loadData(){
       const periodText=item.PeriodKey?" · "+item.PeriodKey:"";
       info.textContent="✅ "+(item.Name||"Không tên")+classText+periodText;
       row.appendChild(info);
-      if(apiVersion>=4&&item._row){
+      if(item._row){
         const deleteButton=document.createElement("button");
         deleteButton.className="danger compact";
         deleteButton.type="button";
