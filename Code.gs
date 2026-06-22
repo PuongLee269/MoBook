@@ -1,4 +1,4 @@
-var API_VERSION = 3;
+var API_VERSION = 4;
 var TIME_ZONE = "Asia/Bangkok";
 var RESPONSE_SHEET = "Responses";
 var CLASS_SHEET = "Classes";
@@ -59,6 +59,16 @@ function doPost(e) {
 
     if (action === "resetResponse") {
       return resetResponse_(data);
+    }
+
+    if (action === "adminDeleteResponse") {
+      verifyAdminKey_(data.adminKey);
+      return adminDeleteResponse_(data);
+    }
+
+    if (action === "resetClassVotes") {
+      verifyAdminKey_(data.adminKey);
+      return resetClassVotes_(data);
     }
 
     if (action !== "submit") {
@@ -199,6 +209,74 @@ function resetResponse_(data) {
   }
 }
 
+function adminDeleteResponse_(data) {
+  var rowNumber = Math.floor(Number(data.rowNumber));
+  if (!rowNumber || rowNumber < 2) {
+    return jsonOutput_({success: false, version: API_VERSION, message: "Dòng dữ liệu không hợp lệ."});
+  }
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sheet = getOrCreateSheet_(RESPONSE_SHEET, ["Timestamp", "Name", "ClassCode"]);
+    if (rowNumber > sheet.getLastRow()) {
+      return jsonOutput_({success: false, version: API_VERSION, message: "Lượt vote không còn tồn tại. Hãy làm mới trang."});
+    }
+
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(String);
+    var row = sheet.getRange(rowNumber, 1, 1, headers.length).getValues()[0];
+    var nameIndex = headers.indexOf("Name");
+    var classIndex = headers.indexOf("ClassCode");
+
+    if (data.name && normalizeName_(row[nameIndex]) !== normalizeName_(data.name)) {
+      return jsonOutput_({success: false, version: API_VERSION, message: "Dữ liệu đã thay đổi. Hãy làm mới trang."});
+    }
+    if (data.classCode && normalizeClassCode_(row[classIndex]) !== normalizeClassCode_(data.classCode)) {
+      return jsonOutput_({success: false, version: API_VERSION, message: "Dữ liệu đã thay đổi. Hãy làm mới trang."});
+    }
+
+    sheet.deleteRow(rowNumber);
+    return jsonOutput_({success: true, version: API_VERSION, deleted: 1});
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function resetClassVotes_(data) {
+  var classCode = normalizeClassCode_(data.classCode);
+  if (!classCode) {
+    return jsonOutput_({success: false, version: API_VERSION, message: "Mã lớp không hợp lệ."});
+  }
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sheet = getOrCreateSheet_(RESPONSE_SHEET, ["Timestamp", "Name", "ClassCode"]);
+    var values = sheet.getDataRange().getValues();
+    if (values.length < 2) {
+      return jsonOutput_({success: true, version: API_VERSION, deleted: 0});
+    }
+
+    var headers = values[0].map(String);
+    var classIndex = headers.indexOf("ClassCode");
+    if (classIndex < 0) {
+      return jsonOutput_({success: true, version: API_VERSION, deleted: 0});
+    }
+
+    var deleted = 0;
+    for (var i = values.length - 1; i >= 1; i--) {
+      if (normalizeClassCode_(values[i][classIndex]) === classCode) {
+        sheet.deleteRow(i + 1);
+        deleted++;
+      }
+    }
+
+    return jsonOutput_({success: true, version: API_VERSION, deleted: deleted, classCode: classCode});
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function checkEligibility_(name, classCode) {
   if (!name) {
     return {success: false, version: API_VERSION, allowed: false, message: "Vui lòng nhập tên."};
@@ -315,6 +393,7 @@ function getResponseObjects_() {
     for (var j = 0; j < actualHeaders.length; j++) {
       obj[actualHeaders[j]] = values[i][j];
     }
+    obj._row = i + 1;
     result.push(obj);
   }
 
