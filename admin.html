@@ -19,7 +19,9 @@ label{display:block;font-weight:700;margin-bottom:7px}
 .form-grid{display:grid;grid-template-columns:1.1fr 1fr auto;gap:12px;align-items:end}
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
 .rank{padding:10px;margin-bottom:8px;background:#f3f4f6;border-radius:8px}
-.user{padding:10px 0;border-bottom:1px solid #eee}
+.user{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #eee}
+.user-info{min-width:0}
+button.compact{padding:8px 10px;font-size:13px}
 .error,.notice{padding:12px;border-radius:8px;white-space:pre-wrap}
 .error{background:#fee2e2;color:#991b1b}
 .notice{background:#fff7ed;border:1px solid #fdba74;color:#9a3412;margin-bottom:14px}
@@ -69,9 +71,10 @@ label{display:block;font-weight:700;margin-bottom:7px}
 <div class="card"><h2>🛠 Debug</h2><div id="debug" class="debug">-</div></div>
 
 <script>
-const API_URL="https://script.google.com/macros/s/AKfycbxG0nbhcXiYmnBBEnt2yHNi6nNIMsSPCOIs3aMLXbIKEVCzHTjia2VgY_-TfOhRqrOi1Q/exec";
+const API_URL="https://script.google.com/macros/s/AKfycbzcjSR9i1UJQjwAd4TM3kuhoAemv7avi0kt3Ic0bg9WJHapRy2gFOPh1iCmaVJURpNGfA/exec";
 let backendReady=false;
 let configDraft=[];
+let apiVersion=0;
 
 function escapeHtml(value){
   return String(value==null?"":value).replace(/[&<>"']/g,function(char){
@@ -104,11 +107,12 @@ async function loadConfig(){
       return;
     }
     backendReady=true;
+    apiVersion=Number(data.version)||0;
     configDraft=data.classes.map(function(item){
       return {code:String(item.code||"").toUpperCase(),frequency:item.frequency==="monthly"?"monthly":"weekly",active:item.active!==false};
     });
     document.getElementById("saveConfigBtn").disabled=false;
-    showConfigNotice("");
+    showConfigNotice(apiVersion<4?"Cần redeploy Code.gs phiên bản 4 để bật chức năng xóa vote.":"");
     renderConfig();
   }catch(error){
     backendReady=false;
@@ -130,7 +134,7 @@ function renderConfig(){
     row.innerHTML='<td><strong>'+escapeHtml(item.code)+'</strong></td>'
       +'<td><select data-field="frequency" data-index="'+index+'"><option value="weekly" '+(item.frequency==="weekly"?"selected":"")+'>Hàng tuần</option><option value="monthly" '+(item.frequency==="monthly"?"selected":"")+'>Hàng tháng</option></select></td>'
       +'<td><label><input type="checkbox" data-field="active" data-index="'+index+'" '+(item.active?"checked":"")+'> Hoạt động</label></td>'
-      +'<td><button class="danger" type="button" data-remove="'+index+'">Xóa</button></td>';
+      +'<td><button class="danger compact" type="button" data-reset-class="'+item.code+'" '+(apiVersion<4?"disabled":"")+'>Reset vote</button> <button class="secondary compact" type="button" data-remove="'+index+'">Xóa lớp</button></td>';
     body.appendChild(row);
   });
 }
@@ -176,6 +180,35 @@ async function saveConfig(){
   }
 }
 
+async function runAdminAction(payload){
+  payload.adminKey=document.getElementById("adminKey").value.trim();
+  const result=await requestJson(API_URL,{method:"POST",body:JSON.stringify(payload)});
+  if(!result.success)throw new Error(result.message||"Thao tác thất bại");
+  return result;
+}
+
+async function resetClassVotes(classCode){
+  if(!window.confirm("Xóa toàn bộ vote của lớp "+classCode+"? Thao tác này không thể hoàn tác."))return;
+  try{
+    const result=await runAdminAction({action:"resetClassVotes",classCode:classCode});
+    showConfigNotice("Đã xóa "+(result.deleted||0)+" vote của lớp "+classCode+".",true);
+    await loadData();
+  }catch(error){
+    showConfigNotice("Reset vote thất bại: "+error.message);
+  }
+}
+
+async function deleteUserVote(rowNumber,name,classCode){
+  if(!window.confirm("Xóa vote của "+name+"? Thao tác này không thể hoàn tác."))return;
+  try{
+    await runAdminAction({action:"adminDeleteResponse",rowNumber:rowNumber,name:name,classCode:classCode});
+    showConfigNotice("Đã xóa vote của "+name+".",true);
+    await loadData();
+  }catch(error){
+    showConfigNotice("Xóa vote thất bại: "+error.message);
+  }
+}
+
 function parseSlots(item){
   let slots=item.Availability||item.availability||[];
   if(typeof slots==="string"){
@@ -198,9 +231,22 @@ async function loadData(){
     records.forEach(function(item){
       const row=document.createElement("div");
       row.className="user";
+      const info=document.createElement("div");
+      info.className="user-info";
       const classText=item.ClassCode?" · Lớp "+item.ClassCode:"";
       const periodText=item.PeriodKey?" · "+item.PeriodKey:"";
-      row.textContent="✅ "+(item.Name||"Không tên")+classText+periodText;
+      info.textContent="✅ "+(item.Name||"Không tên")+classText+periodText;
+      row.appendChild(info);
+      if(apiVersion>=4&&item._row){
+        const deleteButton=document.createElement("button");
+        deleteButton.className="danger compact";
+        deleteButton.type="button";
+        deleteButton.textContent="Xóa vote";
+        deleteButton.dataset.deleteRow=String(item._row);
+        deleteButton.dataset.name=item.Name||"Không tên";
+        deleteButton.dataset.classCode=item.ClassCode||"";
+        row.appendChild(deleteButton);
+      }
       userList.appendChild(row);
       parseSlots(item).forEach(function(slot){
         const key=slot.day+" "+slot.period;
@@ -236,9 +282,17 @@ document.getElementById("configBody").addEventListener("change",function(event){
   if(event.target.dataset.field==="active")configDraft[index].active=event.target.checked;
 });
 document.getElementById("configBody").addEventListener("click",function(event){
+  if(event.target.dataset.resetClass){
+    resetClassVotes(event.target.dataset.resetClass);
+    return;
+  }
   if(event.target.dataset.remove==null)return;
   configDraft.splice(Number(event.target.dataset.remove),1);
   renderConfig();
+});
+document.getElementById("userList").addEventListener("click",function(event){
+  if(!event.target.dataset.deleteRow)return;
+  deleteUserVote(Number(event.target.dataset.deleteRow),event.target.dataset.name,event.target.dataset.classCode);
 });
 loadConfig();
 loadData();
