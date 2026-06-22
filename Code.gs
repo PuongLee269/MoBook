@@ -1,4 +1,4 @@
-var API_VERSION = 4;
+var API_VERSION = 5;
 var TIME_ZONE = "Asia/Bangkok";
 var RESPONSE_SHEET = "Responses";
 var CLASS_SHEET = "Classes";
@@ -40,6 +40,7 @@ function doGet(e) {
       });
     }
 
+    verifyAdminKey_(e && e.parameter ? e.parameter.adminKey : "");
     return jsonOutput_(records);
   } catch (error) {
     return jsonOutput_({success: false, version: API_VERSION, message: error.message});
@@ -50,6 +51,11 @@ function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents || "{}");
     var action = String(data.action || "submit");
+
+    if (action === "adminAuth") {
+      verifyAdminKey_(data.adminKey);
+      return jsonOutput_({success: true, version: API_VERSION, authenticated: true});
+    }
 
     if (action === "saveConfig") {
       verifyAdminKey_(data.adminKey);
@@ -496,8 +502,11 @@ function getPeriod_(frequency, date) {
 
 function verifyAdminKey_(providedKey) {
   var expectedKey = PropertiesService.getScriptProperties().getProperty("ADMIN_KEY");
-  if (expectedKey && String(providedKey || "") !== expectedKey) {
-    throw new Error("Khóa quản trị không đúng.");
+  if (!expectedKey) {
+    throw new Error("Chưa cấu hình ADMIN_KEY trong Script Properties.");
+  }
+  if (String(providedKey || "") !== expectedKey) {
+    throw new Error("Mật khẩu quản trị không đúng.");
   }
 }
 
